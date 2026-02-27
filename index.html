@@ -13,16 +13,46 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+               /* 禁用文字选中，防止直接复制 */
+               user-select: none; -webkit-user-select: none; }
         .glass-panel { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* 密码界面样式 */
+        #auth-screen { transition: opacity 0.4s ease, visibility 0.4s ease; z-index: 50; }
+        #app-content { transition: filter 0.5s ease; }
+        .locked { filter: blur(16px); pointer-events: none; }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-6 lg:p-8 selection:bg-crypto selection:text-white">
+<body class="min-h-screen selection:bg-crypto selection:text-white relative">
 
-    <div class="max-w-7xl mx-auto space-y-6">
-        
+    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm">
+        <div class="glass-panel p-8 rounded-2xl w-full max-w-sm text-center transform transition-all shadow-2xl border border-slate-700">
+            <div class="w-16 h-16 bg-crypto/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-crypto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-100 mb-2">HAB 核心数据库</h2>
+            <p class="text-slate-400 text-sm mb-6">请输入访问密钥，或以游客身份继续</p>
+            
+            <input type="password" id="pass-input" placeholder="输入密钥" class="w-full bg-slate-800 border border-slate-600 rounded-lg px-4 py-3 text-slate-200 focus:outline-none focus:border-crypto focus:ring-1 focus:ring-crypto mb-4 transition-colors" />
+            
+            <div class="space-y-3">
+                <button id="btn-login" class="w-full bg-crypto hover:bg-yellow-500 text-slate-900 font-bold py-3 px-4 rounded-lg transition-colors">
+                    解锁面板
+                </button>
+                <button id="btn-guest" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-3 px-4 rounded-lg border border-slate-600 transition-colors">
+                    游客模式访问
+                </button>
+            </div>
+            <p id="error-msg" class="text-rose-400 text-sm mt-4 hidden">密钥验证失败</p>
+        </div>
+    </div>
+
+    <div id="app-content" class="max-w-7xl mx-auto space-y-6 p-4 md:p-6 lg:p-8 locked">
         <header class="flex flex-col md:flex-row justify-between items-center glass-panel rounded-2xl p-6 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-64 h-64 bg-crypto opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
             <div class="relative z-10">
@@ -46,7 +76,6 @@
                     <div class="w-1.5 h-6 bg-crypto rounded-full"></div>
                     <h2 class="text-xl font-semibold text-slate-100">阶层地址净变动监控</h2>
                 </div>
-                
                 <div class="mt-4 md:mt-0 flex items-center bg-slate-800/80 rounded-lg p-1 border border-slate-700">
                     <span class="text-sm text-slate-400 px-3 hidden md:inline-block">观察周期：</span>
                     <select id="timeframe-select" class="bg-transparent text-slate-200 font-medium text-sm py-1.5 px-3 focus:outline-none cursor-pointer">
@@ -60,7 +89,6 @@
                     </select>
                 </div>
             </div>
-            
             <div id="metric-cards" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
                 <div class="col-span-full text-center text-slate-500 py-8">数据加载中...</div>
             </div>
@@ -105,14 +133,74 @@
     </div>
 
     <script>
+        // ==========================================
+        // 防扒皮代码 (防君子不防小人)
+        // ==========================================
+        // 1. 禁用右键菜单
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        
+        // 2. 禁用 F12 和 Ctrl+Shift+I (开发者工具)
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.shiftKey && e.key === 'J') || (e.ctrlKey && e.key === 'U')) {
+                e.preventDefault();
+            }
+        });
+
+        // ==========================================
+        // 密码验证逻辑
+        // ==========================================
+        const targetPass = 'habfut'; // 设置你的密码
+        const authScreen = document.getElementById('auth-screen');
+        const appContent = document.getElementById('app-content');
+        const passInput = document.getElementById('pass-input');
+        const btnLogin = document.getElementById('btn-login');
+        const btnGuest = document.getElementById('btn-guest');
+        const errorMsg = document.getElementById('error-msg');
+
+        // 检查本地是否已经验证过（保持登录状态）
+        if(localStorage.getItem('hab_auth_status')) {
+            unlockScreen();
+        }
+
+        function unlockScreen() {
+            authScreen.style.opacity = '0';
+            authScreen.style.visibility = 'hidden';
+            appContent.classList.remove('locked');
+        }
+
+        // 登录按钮点击
+        btnLogin.addEventListener('click', () => {
+            if (passInput.value === targetPass) {
+                localStorage.setItem('hab_auth_status', 'admin');
+                unlockScreen();
+            } else {
+                errorMsg.classList.remove('hidden');
+                passInput.value = '';
+            }
+        });
+
+        // 回车键直接登录
+        passInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') btnLogin.click();
+        });
+
+        // 游客模式点击
+        btnGuest.addEventListener('click', () => {
+            localStorage.setItem('hab_auth_status', 'guest');
+            unlockScreen();
+            // 可以选择给游客加个标记或者隐藏某些图表，这里保持全开放
+        });
+
+
+        // ==========================================
+        // 核心数据渲染逻辑 (保持不变)
+        // ==========================================
         let globalRawData = [];
 
-        // 初始化 ECharts
         const chartDom = document.getElementById('main-chart');
         const myChart = echarts.init(chartDom, 'dark', { renderer: 'canvas' });
         window.addEventListener('resize', () => myChart.resize());
 
-        // 辅助函数：将大数字转换为带 K/M 的简写
         function formatNumber(num) {
             const absNum = Math.abs(num);
             if (absNum >= 1000000) return (num / 1000000).toFixed(2) + 'M';
@@ -120,7 +208,6 @@
             return num.toString();
         }
 
-        // 辅助函数：格式化表格中的涨跌差值（带颜色和正负号）
         function formatTableDiff(val) {
             if (val === 0) return `<span class="text-slate-500">-</span>`;
             const sign = val > 0 ? '+' : '';
@@ -128,7 +215,6 @@
             return `<span class="${color} px-2 py-1 rounded text-sm font-semibold">${sign}${val.toLocaleString()}</span>`;
         }
 
-        // 渲染顶部数据卡片
         function renderMetricCards(days) {
             const container = document.getElementById('metric-cards');
             if (!globalRawData || globalRawData.length === 0) return;
@@ -173,13 +259,11 @@
             });
         }
 
-        // 新增：渲染详细数据表格
         function renderDistributionTable() {
             const tbody = document.getElementById('distribution-table-body');
             if (!globalRawData || globalRawData.length === 0) return;
 
             const latest = globalRawData[globalRawData.length - 1];
-            // 获取对比日期的索引 (处理数据不足的情况)
             const getPast = (days) => globalRawData[Math.max(0, globalRawData.length - 1 - days)];
             
             const past1 = getPast(1);
@@ -188,7 +272,6 @@
 
             const columns = Object.keys(latest).filter(k => k !== 'Date');
             
-            // 计算最新日期的全网总地址数 (用于计算百分比)
             let totalAddresses = 0;
             columns.forEach(col => { totalAddresses += parseInt(latest[col] || 0); });
 
@@ -203,10 +286,7 @@
                 const diff7d = currentVal - past7Val;
                 const diff30d = currentVal - past30Val;
 
-                // 计算占比
                 const percentage = totalAddresses === 0 ? "0.00%" : ((currentVal / totalAddresses) * 100).toFixed(4) + '%';
-                
-                // 表格行斑马线效果
                 const rowBg = index % 2 === 0 ? 'bg-transparent' : 'bg-slate-800/20';
 
                 tableHtml += `
@@ -227,7 +307,6 @@
             tbody.innerHTML = tableHtml;
         }
 
-        // 加载并渲染核心数据
         async function loadData() {
             try {
                 const response = await fetch('./data/data.json');
@@ -235,16 +314,13 @@
 
                 if (!globalRawData || globalRawData.length === 0) return;
 
-                // 1. 更新最新日期
                 const latestRecord = globalRawData[globalRawData.length - 1];
                 document.getElementById('latest-date').innerText = latestRecord.Date;
                 document.getElementById('latest-date').classList.remove('animate-pulse');
 
-                // 2. 渲染顶部卡片和底部表格
                 renderMetricCards(30);
                 renderDistributionTable();
 
-                // 3. 渲染 ECharts 图表
                 const dates = globalRawData.map(item => item.Date);
                 const columns = Object.keys(globalRawData[0]).filter(k => k !== 'Date');
                 
@@ -311,13 +387,11 @@
             }
         }
 
-        // 监听下拉菜单，切换卡片的时间维度
         document.getElementById('timeframe-select').addEventListener('change', (e) => {
             const selectedDays = parseInt(e.target.value);
             renderMetricCards(selectedDays);
         });
 
-        // 启动
         loadData();
     </script>
 </body>
