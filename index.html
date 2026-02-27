@@ -3,424 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin 链上地址分布全景面板</title>
+    <title>Bitcoin 链上持仓全景监控 - HAB PRIVATE</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { 
-            theme: { extend: { colors: { crypto: '#f7931a', lightbg: '#f8fafc' } } } 
+            theme: { extend: { colors: { crypto: '#f7931a', primary: '#3b82f6' } } } 
         }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    
     <style>
-        /* 明亮优雅的主题底色 */
-        body { background-color: #f8fafc; color: #1e293b; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-               user-select: none; -webkit-user-select: none; }
-        
-        /* 极致现代感的白色毛玻璃面板 */
+        /* 全局明亮优雅风格 */
+        body { 
+            background-color: #f1f5f9; 
+            background-image: radial-gradient(#cbd5e1 0.5px, transparent 0.5px);
+            background-size: 20px 20px;
+            color: #1e293b; 
+            font-family: "Inter", system-ui, -apple-system, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 极致毛玻璃面板 */
         .glass-panel { 
             background: rgba(255, 255, 255, 0.7); 
-            backdrop-filter: blur(16px); 
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.8); 
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01); 
+            backdrop-filter: blur(20px); 
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 1); 
+            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.05); 
         }
-        
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* 密码界面样式 */
-        #auth-screen { transition: opacity 0.5s ease, visibility 0.5s ease; z-index: 50; }
-        #app-content { transition: filter 0.6s ease; }
-        .locked { filter: blur(20px); pointer-events: none; }
+
+        /* 隐藏滚动条 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        /* 锁定状态模糊 */
+        #app-content.locked { filter: blur(30px); pointer-events: none; }
+        #auth-screen { z-index: 9999; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* 动画 */
+        @keyframes pulse-soft { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .animate-soft { animation: pulse-soft 2s infinite; }
     </style>
 </head>
-<body class="min-h-screen selection:bg-crypto selection:text-white relative bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed">
+<body class="min-h-screen relative overflow-x-hidden">
 
-    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center bg-slate-200/50 backdrop-blur-md">
-        <div class="glass-panel p-8 rounded-3xl w-full max-w-sm text-center transform transition-all shadow-2xl">
-            <div class="w-20 h-20 bg-orange-50 rounded-full flex items-center justify-center mx-auto mb-5 shadow-inner border border-orange-100">
-                <svg class="w-12 h-12 text-crypto drop-shadow-sm" viewBox="0 0 24 24" fill="currentColor">
+    <div id="auth-screen" class="fixed inset-0 flex items-center justify-center bg-slate-100/40 backdrop-blur-xl">
+        <div class="glass-panel p-10 rounded-[2.5rem] w-full max-w-sm text-center shadow-2xl border border-white">
+            <div class="w-20 h-20 bg-gradient-to-tr from-crypto to-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-orange-200 rotate-12">
+                <svg class="w-12 h-12 text-white" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M14.4 12.16c.92-.48 1.48-1.28 1.48-2.32 0-1.84-1.36-2.68-3.4-2.68H10.6v-2h-1.6v2H7.4v2h1.6v9.6H7.4v2h1.6v2h1.6v-2h1.88c2.4 0 4-1.12 4-3.12 0-1.44-.88-2.48-2.08-2.84zm-2.12-3.16c.8 0 1.28.4 1.28 1.08s-.48 1.08-1.28 1.08h-1.68V9h1.68zm.4 6.88c-.88 0-1.4-.44-1.4-1.16s.52-1.16 1.4-1.16h1.68v2.32h-1.68z"/>
-                    <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="2" fill="none"/>
                 </svg>
             </div>
-            <h2 class="text-2xl font-extrabold text-slate-800 mb-2">HAB 核心数据库</h2>
-            <p class="text-slate-500 text-sm mb-6">请输入访问密钥，或以游客身份继续</p>
+            <h2 class="text-3xl font-black text-slate-800 mb-2 tracking-tighter italic">HAB ANALYTICS</h2>
+            <p class="text-slate-400 text-sm mb-8 font-bold uppercase tracking-widest">内部持仓数据监控终端</p>
             
-            <input type="password" id="pass-input" placeholder="输入密钥" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-700 focus:outline-none focus:border-crypto focus:ring-2 focus:ring-crypto/30 mb-5 transition-all shadow-sm" />
+            <div class="relative mb-4">
+                <input type="password" id="pass-input" placeholder="输入密钥解锁" class="w-full bg-white border border-slate-200 rounded-2xl px-6 py-4 text-center font-black tracking-[0.5em] text-slate-700 outline-none focus:ring-4 focus:ring-crypto/20 transition-all placeholder:tracking-normal placeholder:font-medium" />
+            </div>
             
             <div class="space-y-3">
-                <button id="btn-login" class="w-full bg-gradient-to-r from-crypto to-orange-400 hover:from-orange-500 hover:to-orange-500 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md hover:shadow-lg">
-                    解锁面板
-                </button>
-                <button id="btn-guest" class="w-full bg-white hover:bg-slate-50 text-slate-600 font-medium py-3 px-4 rounded-xl border border-slate-200 transition-all shadow-sm">
-                    游客模式访问
-                </button>
+                <button id="btn-login" class="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-slate-800 active:scale-95 transition-all shadow-xl">进入系统</button>
+                <button id="btn-guest" class="w-full text-slate-400 font-bold py-2 hover:text-slate-600 transition-colors">游客模式访问</button>
             </div>
-            <p id="error-msg" class="text-rose-500 text-sm mt-4 hidden font-medium">密钥验证失败，请重试</p>
+            <p id="error-msg" class="text-rose-500 text-xs mt-4 hidden font-black">密钥验证失败 (TOKEN INVALID)</p>
         </div>
     </div>
 
-    <div id="app-content" class="max-w-7xl mx-auto space-y-6 p-4 md:p-6 lg:p-8 locked">
+    <div id="app-content" class="max-w-7xl mx-auto p-4 md:p-8 lg:p-12 space-y-10 locked">
         
-        <header class="flex flex-col md:flex-row justify-between items-center glass-panel rounded-3xl p-6 lg:p-8 relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-72 h-72 bg-gradient-to-br from-orange-200 to-yellow-100 opacity-30 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
-            <div class="relative z-10 flex items-center space-x-4">
-                <div class="hidden md:flex w-14 h-14 bg-white rounded-full items-center justify-center shadow-sm border border-orange-100">
-                    <svg class="w-8 h-8 text-crypto" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M14.4 12.16c.92-.48 1.48-1.28 1.48-2.32 0-1.84-1.36-2.68-3.4-2.68H10.6v-2h-1.6v2H7.4v2h1.6v9.6H7.4v2h1.6v2h1.6v-2h1.88c2.4 0 4-1.12 4-3.12 0-1.44-.88-2.48-2.08-2.84zm-2.12-3.16c.8 0 1.28.4 1.28 1.08s-.48 1.08-1.28 1.08h-1.68V9h1.68zm.4 6.88c-.88 0-1.4-.44-1.4-1.16s.52-1.16 1.4-1.16h1.68v2.32h-1.68z"/>
-                        <circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="2" fill="none"/>
+        <header class="flex flex-col md:flex-row justify-between items-center glass-panel rounded-[2rem] p-8 relative overflow-hidden">
+            <div class="absolute -top-24 -right-24 w-64 h-64 bg-crypto opacity-10 rounded-full blur-3xl"></div>
+            <div class="flex items-center space-x-6 relative z-10">
+                <div class="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-orange-50">
+                    <svg class="w-10 h-10 text-crypto" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M14.4 12.16c.92-.48 1.48-1.28 1.48-2.32 0-1.84-1.36-2.68-3.4-2.68H10.6v-2h-1.6v2H7.4v2h1.6v9.6H7.4v2h1.6v2h1.6v-2h1.88c2.4 0 4-1.12 4-3.12 0-1.44-.88-2.48-2.08-2.84zm-2.12-3.16c.8 0 1.28.4 1.28 1.08s-.48 1.08-1.28 1.08h-1.68V9h1.68zm.4 6.88c-.88 0-1.4-.44-1.4-1.16s.52-1.16 1.4-1.16h1.68v2.32h-1.68z"/><circle cx="12" cy="12" r="11" stroke="currentColor" stroke-width="2" fill="none"/>
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-3xl font-extrabold tracking-tight text-slate-800">
-                        Bitcoin 链上持仓分布洞察
-                    </h1>
-                    <p class="text-slate-500 mt-1.5 text-sm flex items-center font-medium">
-                        <svg class="w-4 h-4 mr-1.5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                        提示：在下方图表图例中点击取消选中“散户”，即可清晰观察巨鲸的剧烈波动
-                    </p>
+                    <h1 class="text-4xl font-black text-slate-800 tracking-tighter uppercase italic">Bitcoin Wealth Distribution</h1>
+                    <div class="flex items-center mt-1 space-x-4">
+                        <span class="flex items-center text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+                            <span class="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-soft"></span> LIVE SYNC ACTIVE
+                        </span>
+                        <span class="text-slate-300 font-bold text-[10px]">|</span>
+                        <span class="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Source: BitInfoCharts Official</span>
+                    </div>
                 </div>
             </div>
-            <div class="mt-5 md:mt-0 text-right relative z-10 bg-white/60 px-5 py-3 rounded-2xl border border-white shadow-sm">
-                <div class="text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">Last Synced</div>
-                <div id="latest-date" class="text-xl font-mono text-emerald-600 font-bold animate-pulse">Data Loading...</div>
+            <div class="mt-8 md:mt-0 flex flex-col items-end">
+                <span class="text-[10px] font-black text-slate-300 uppercase tracking-[0.2em] mb-2">Last Synchronized At</span>
+                <div id="latest-date" class="text-2xl font-mono font-black text-slate-700 bg-white px-6 py-3 rounded-2xl border border-slate-100 shadow-sm">-- ---- --</div>
             </div>
         </header>
 
-        <section class="glass-panel rounded-3xl p-6 lg:p-8">
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6">
-                <div class="flex items-center space-x-3">
-                    <div class="w-2 h-7 bg-crypto rounded-full shadow-sm"></div>
-                    <h2 class="text-xl font-bold text-slate-800">阶层地址净变动监控</h2>
+        <section class="glass-panel rounded-[2.5rem] p-8 md:p-10">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-10">
+                <div class="flex items-center space-x-4">
+                    <div class="w-3 h-8 bg-crypto rounded-full"></div>
+                    <h2 class="text-2xl font-black text-slate-800 tracking-tight">阶层地址动态监测</h2>
                 </div>
-                <div class="mt-4 md:mt-0 flex items-center bg-white rounded-xl p-1.5 border border-slate-200 shadow-sm">
-                    <span class="text-sm text-slate-500 px-3 font-medium hidden md:inline-block">观察周期：</span>
-                    <select id="timeframe-select" class="bg-slate-50 text-slate-700 font-bold text-sm py-2 px-4 rounded-lg focus:outline-none cursor-pointer border-none focus:ring-2 focus:ring-crypto/20">
+                <div class="mt-6 md:mt-0 flex bg-white/50 rounded-2xl p-1.5 border border-slate-200">
+                    <select id="timeframe-select" class="bg-white text-slate-700 font-black text-xs py-2.5 px-6 rounded-xl focus:outline-none cursor-pointer border-none shadow-sm">
                         <option value="7">最近 7 天</option>
                         <option value="30" selected>最近 30 天</option>
                         <option value="150">最近 150 天</option>
-                        <option value="365">最近 1 年 (365天)</option>
-                        <option value="700">最近 700 天</option>
-                        <option value="1000">最近 1000 天</option>
-                        <option value="1400">最近 1400 天</option>
+                        <option value="365">最近 1 年</option>
                     </select>
                 </div>
             </div>
             <div id="metric-cards" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-                <div class="col-span-full text-center text-slate-400 py-8 font-medium">数据加载中...</div>
-            </div>
+                </div>
         </section>
 
-        <main class="glass-panel rounded-3xl p-6 lg:p-8">
-            <div class="flex items-center space-x-3 mb-4">
-                <div class="w-2 h-7 bg-blue-500 rounded-full shadow-sm"></div>
-                <h2 class="text-xl font-bold text-slate-800">长期趋势全景图</h2>
+        <section class="glass-panel rounded-[2.5rem] p-8 md:p-10">
+            <div class="flex items-center space-x-4 mb-10">
+                <div class="w-3 h-8 bg-indigo-500 rounded-full"></div>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">实时持仓详情 (100% 原始抓取)</h2>
             </div>
-            <div id="main-chart" class="w-full h-[550px]"></div>
-        </main>
-
-        <section class="glass-panel rounded-3xl p-6 lg:p-8">
-            <div class="flex items-center space-x-3 mb-6">
-                <div class="w-2 h-7 bg-purple-500 rounded-full shadow-sm"></div>
-                <h2 class="text-xl font-bold text-slate-800">当前持仓分布与多周期变动明细</h2>
-            </div>
-            <div class="overflow-x-auto scrollbar-hide rounded-2xl border border-slate-200 bg-white/40">
-                <table class="w-full text-left border-collapse min-w-[900px]">
+            <div class="overflow-x-auto no-scrollbar rounded-3xl border border-slate-100 bg-white/40 shadow-inner">
+                <table class="w-full text-left border-collapse min-w-[1000px]">
                     <thead>
-                        <tr class="text-slate-500 text-sm border-b border-slate-200 bg-slate-100/50">
-                            <th class="py-4 px-5 font-bold">持币区间 (BTC)</th>
-                            <th class="py-4 px-5 font-bold text-right">当前总地址数</th>
-                            <th class="py-4 px-5 font-bold text-right text-crypto">预估总持仓 (BTC)</th>
-                            <th class="py-4 px-5 font-bold text-right">占全网比重</th>
-                            <th class="py-4 px-5 font-bold text-right">24H 净变动</th>
-                            <th class="py-4 px-5 font-bold text-right">7天 净变动</th>
-                            <th class="py-4 px-5 font-bold text-right">30天 净变动</th>
+                        <tr class="text-slate-400 text-[10px] font-black uppercase tracking-[0.15em] bg-slate-50/80 border-b border-slate-100">
+                            <th class="py-6 px-8">区间 (BTC Balance)</th>
+                            <th class="py-6 px-8 text-right">地址总数</th>
+                            <th class="py-6 px-8 text-right text-crypto">持币总量 (Coins)</th>
+                            <th class="py-6 px-8 text-right text-emerald-600">持仓价值 (USD)</th>
+                            <th class="py-6 px-8 text-right">全网占比</th>
+                            <th class="py-6 px-8 text-right">24H 变动</th>
                         </tr>
                     </thead>
-                    <tbody id="distribution-table-body">
-                        <tr><td colspan="7" class="text-center text-slate-400 py-8 font-medium">正在计算详情数据...</td></tr>
-                    </tbody>
+                    <tbody id="distribution-table-body" class="divide-y divide-slate-50 font-mono text-sm">
+                        </tbody>
                 </table>
             </div>
-            <p class="text-right text-xs text-slate-400 mt-3 font-medium">* 预估总持仓量基于各区间地址数及分布模型推算，仅供趋势参考。</p>
+            <p class="mt-4 text-[10px] text-slate-400 font-bold italic">* 持币总量 (Coins) 与价值 (USD) 直接同步自网页实时表格，绝非猜测预估。</p>
         </section>
 
-        <footer class="text-center text-slate-400 text-sm py-6 flex flex-col items-center justify-center font-medium">
-            <p class="mb-1">Data Source: BitInfoCharts | Automated by GitHub Actions</p>
-            <p>Deployed seamlessly on Cloudflare Pages</p>
+        <section class="glass-panel rounded-[2.5rem] p-8 md:p-10">
+            <div class="flex items-center space-x-4 mb-10">
+                <div class="w-3 h-8 bg-blue-500 rounded-full"></div>
+                <h2 class="text-2xl font-black text-slate-800 tracking-tight">地址增长历史趋势 (LOG)</h2>
+            </div>
+            <div id="main-chart" class="w-full h-[600px]"></div>
+        </section>
+
+        <footer class="text-center py-12">
+            <p class="text-[10px] font-black text-slate-300 uppercase tracking-[0.4em]">HAB.B.BTC_ADDRESS_ANALYSIS &copy; 2026 INTERNAL ONLY</p>
         </footer>
     </div>
 
     <script>
-        // 防扒皮代码 (防君子不防小人)
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.shiftKey && e.key === 'J') || (e.ctrlKey && e.key === 'U')) {
-                e.preventDefault();
-            }
-        });
+        // --- 1. 安全与授权逻辑 ---
+        document.oncontextmenu = () => false;
+        document.onkeydown = e => {
+            if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) || (e.ctrlKey && e.key === 'U')) return false;
+        };
 
-        // 密码验证逻辑
-        const targetPass = 'habfut'; 
-        const authScreen = document.getElementById('auth-screen');
-        const appContent = document.getElementById('app-content');
-        const passInput = document.getElementById('pass-input');
-        const btnLogin = document.getElementById('btn-login');
-        const btnGuest = document.getElementById('btn-guest');
-        const errorMsg = document.getElementById('error-msg');
+        const auth = document.getElementById('auth-screen'), content = document.getElementById('app-content');
+        const passInput = document.getElementById('pass-input'), errorMsg = document.getElementById('error-msg');
 
-        if(localStorage.getItem('hab_auth_status')) { unlockScreen(); }
+        if (localStorage.getItem('hab_db_auth')) unlock();
 
-        function unlockScreen() {
-            authScreen.style.opacity = '0';
-            authScreen.style.visibility = 'hidden';
-            appContent.classList.remove('locked');
+        function unlock() {
+            auth.style.opacity = '0';
+            auth.style.transform = 'translateY(-20px)';
+            setTimeout(() => auth.remove(), 600);
+            content.classList.remove('locked');
+            initData();
         }
 
-        btnLogin.addEventListener('click', () => {
-            if (passInput.value === targetPass) {
-                localStorage.setItem('hab_auth_status', 'admin');
-                unlockScreen();
+        document.getElementById('btn-login').onclick = () => {
+            if (passInput.value === 'habfut') {
+                localStorage.setItem('hab_db_auth', 'true');
+                unlock();
             } else {
                 errorMsg.classList.remove('hidden');
-                passInput.value = '';
-                passInput.classList.add('border-rose-300', 'ring-rose-200');
+                passInput.classList.add('ring-rose-500/20', 'border-rose-200');
             }
-        });
+        };
 
-        passInput.addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') btnLogin.click();
-        });
+        document.getElementById('btn-guest').onclick = unlock;
 
-        btnGuest.addEventListener('click', () => {
-            localStorage.setItem('hab_auth_status', 'guest');
-            unlockScreen();
-        });
+        // --- 2. 核心渲染逻辑 ---
+        let rawData = [];
+        const myChart = echarts.init(document.getElementById('main-chart'));
 
-        // 核心数据渲染逻辑
-        let globalRawData = [];
-        
-        // ECharts 注意：去掉了 'dark' 参数，使用默认明亮主题
-        const chartDom = document.getElementById('main-chart');
-        const myChart = echarts.init(chartDom, null, { renderer: 'canvas' });
-        window.addEventListener('resize', () => myChart.resize());
+        const tiers = ['0-0.1', '0.1-1', '1-10', '10-100', '100-1,000', '1,000-10,000', '10,000-100,000', '100,000-1,000,000'];
 
-        function formatNumber(num) {
-            const absNum = Math.abs(num);
-            if (absNum >= 1000000) return (num / 1000000).toFixed(2) + 'M';
-            if (absNum >= 1000) return (num / 1000).toFixed(1) + 'K';
-            return num.toString();
-        }
+        async function initData() {
+            try {
+                const res = await fetch('./data/data.json');
+                rawData = await res.json();
+                if (!rawData.length) return;
 
-        function formatTableDiff(val) {
-            if (val === 0) return `<span class="text-slate-400">-</span>`;
-            const sign = val > 0 ? '+' : '';
-            // 明亮模式下的红绿配色更鲜艳
-            const color = val > 0 ? 'text-emerald-700 bg-emerald-100 border-emerald-200' : 'text-rose-700 bg-rose-100 border-rose-200';
-            return `<span class="${color} border px-2.5 py-1 rounded-md text-sm font-bold shadow-sm">${sign}${val.toLocaleString()}</span>`;
-        }
+                const latest = rawData[rawData.length - 1];
+                document.getElementById('latest-date').innerText = latest.Date;
 
-        // 预估比特币持仓量算法 (基于统计学均值模型估算)
-        function estimateHoldings(tier, count) {
-            const multipliers = {
-                '0-0.1': 0.005,
-                '0.1-1': 0.3,
-                '1-10': 2.5,
-                '10-100': 32,
-                '100-1,000': 280,
-                '1,000-10,000': 2200,
-                '10,000-100,000': 25000,
-                '100,000-1,000,000': 160000
-            };
-            return count * (multipliers[tier] || 0);
+                renderMetricCards(30);
+                renderTable();
+                renderChart();
+
+            } catch (e) { console.error("Data Load Error:", e); }
         }
 
         function renderMetricCards(days) {
             const container = document.getElementById('metric-cards');
-            if (!globalRawData || globalRawData.length === 0) return;
+            const latest = rawData[rawData.length - 1];
+            let pastIdx = rawData.length - 1 - days;
+            if (pastIdx < 0) pastIdx = 0;
+            const past = rawData[pastIdx];
 
-            const latest = globalRawData[globalRawData.length - 1];
-            let pastIndex = globalRawData.length - 1 - days;
-            if (pastIndex < 0) pastIndex = 0;
-            const past = globalRawData[pastIndex];
-
-            const columns = Object.keys(latest).filter(k => k !== 'Date');
-            container.innerHTML = '';
-
-            columns.forEach(col => {
-                const currentVal = parseInt(latest[col] || 0);
-                const pastVal = parseInt(past[col] || 0);
-                const diff = currentVal - pastVal;
-                
-                let pctChange = "0.00";
-                if (pastVal !== 0) pctChange = ((diff / pastVal) * 100).toFixed(2);
-
-                const isPositive = diff >= 0;
-                const textColor = isPositive ? 'text-emerald-600' : 'text-rose-600';
-                const bgColor = isPositive ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100';
-                const sign = isPositive ? '+' : '';
-
-                const cardHtml = `
-                    <div class="bg-white hover:bg-slate-50 transition-all border border-slate-200 shadow-sm hover:shadow-md rounded-2xl p-4 flex flex-col items-center text-center relative group">
-                        <div class="text-xs text-slate-500 font-bold mb-1.5 group-hover:text-crypto transition-colors">${col}</div>
-                        <div class="text-xl font-extrabold text-slate-800 mb-2 truncate w-full" title="${currentVal.toLocaleString()}">${formatNumber(currentVal)}</div>
-                        <div class="w-full border-t border-slate-100 mb-3"></div>
-                        <div class="flex flex-col items-center space-y-1.5">
-                            <span class="text-[12px] px-2.5 py-0.5 rounded-md ${bgColor} ${textColor} border font-mono font-bold">
-                                ${sign}${formatNumber(diff)}
-                            </span>
-                            <span class="${textColor} text-xs font-extrabold">
-                                ${sign}${pctChange}%
-                            </span>
+            container.innerHTML = tiers.map(t => {
+                const diff = latest[t] - past[t];
+                const isUp = diff >= 0;
+                const color = isUp ? 'text-emerald-600 bg-emerald-50 border-emerald-100' : 'text-rose-600 bg-rose-50 border-rose-100';
+                return `
+                    <div class="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all text-center">
+                        <div class="text-[9px] font-black text-slate-400 uppercase mb-2">${t}</div>
+                        <div class="text-lg font-black text-slate-800 mb-2 tracking-tighter">${latest[t].toLocaleString()}</div>
+                        <div class="w-full border-t border-slate-50 mb-2"></div>
+                        <div class="${color} text-[10px] font-black px-2 py-1 rounded-lg border">
+                            ${isUp ? '+' : ''}${diff.toLocaleString()}
                         </div>
                     </div>
                 `;
-                container.innerHTML += cardHtml;
-            });
+            }).join('');
         }
 
-        function renderDistributionTable() {
+        function renderTable() {
             const tbody = document.getElementById('distribution-table-body');
-            if (!globalRawData || globalRawData.length === 0) return;
-
-            const latest = globalRawData[globalRawData.length - 1];
-            const getPast = (days) => globalRawData[Math.max(0, globalRawData.length - 1 - days)];
+            const latest = rawData[rawData.length - 1];
+            const prev = rawData[rawData.length - 2] || latest;
             
-            const past1 = getPast(1);
-            const past7 = getPast(7);
-            const past30 = getPast(30);
+            let totalAddr = 0;
+            tiers.forEach(t => totalAddr += latest[t]);
 
-            const columns = Object.keys(latest).filter(k => k !== 'Date');
-            
-            let totalAddresses = 0;
-            columns.forEach(col => { totalAddresses += parseInt(latest[col] || 0); });
+            tbody.innerHTML = tiers.map((t, i) => {
+                const diff24 = latest[t] - prev[t];
+                const pct = ((latest[t] / totalAddr) * 100).toFixed(4);
+                
+                // 读取原始 Coins 和 USD
+                const coins = Number(latest[t + '_coins'] || 0).toLocaleString();
+                const usd = Number(latest[t + '_usd'] || 0).toLocaleString();
 
-            let tableHtml = '';
-            columns.forEach((col, index) => {
-                const currentVal = parseInt(latest[col] || 0);
-                const prevVal = parseInt(past1[col] || 0);
-                const past7Val = parseInt(past7[col] || 0);
-                const past30Val = parseInt(past30[col] || 0);
-
-                const diff24h = currentVal - prevVal;
-                const diff7d = currentVal - past7Val;
-                const diff30d = currentVal - past30Val;
-
-                // 计算预估总持仓
-                const estHoldings = estimateHoldings(col, currentVal);
-                const formattedHoldings = estHoldings > 1000 ? formatNumber(estHoldings) : Math.round(estHoldings).toLocaleString();
-
-                const percentage = totalAddresses === 0 ? "0.00%" : ((currentVal / totalAddresses) * 100).toFixed(4) + '%';
-                const rowBg = index % 2 === 0 ? 'bg-transparent' : 'bg-slate-50';
-
-                tableHtml += `
-                    <tr class="border-b border-slate-100 hover:bg-orange-50/50 transition-colors ${rowBg}">
-                        <td class="py-4 px-5 text-slate-700 font-bold flex items-center space-x-2">
-                            <span class="w-2 h-2 rounded-full bg-crypto shadow-sm"></span>
-                            <span>${col}</span>
+                return `
+                    <tr class="hover:bg-slate-50/50 transition-all ${i % 2 ? 'bg-slate-50/20' : ''}">
+                        <td class="py-5 px-8 font-black text-slate-700 italic">${t}</td>
+                        <td class="py-5 px-8 text-right font-bold text-slate-500">${latest[t].toLocaleString()}</td>
+                        <td class="py-5 px-8 text-right font-black text-crypto tracking-tighter">${coins} BTC</td>
+                        <td class="py-5 px-8 text-right font-black text-emerald-600 tracking-tighter">$${usd}</td>
+                        <td class="py-5 px-8 text-right text-slate-400 font-bold">${pct}%</td>
+                        <td class="py-5 px-8 text-right font-black ${diff24 >= 0 ? 'text-emerald-500' : 'text-rose-500'}">
+                            ${diff24 >= 0 ? '+' : ''}${diff24}
                         </td>
-                        <td class="py-4 px-5 text-slate-800 text-right font-mono text-base font-extrabold">${currentVal.toLocaleString()}</td>
-                        <td class="py-4 px-5 text-crypto text-right font-mono text-base font-extrabold tracking-wide">${formattedHoldings}</td>
-                        <td class="py-4 px-5 text-slate-500 text-right font-mono text-sm font-semibold">${percentage}</td>
-                        <td class="py-4 px-5 text-right font-mono">${formatTableDiff(diff24h)}</td>
-                        <td class="py-4 px-5 text-right font-mono">${formatTableDiff(diff7d)}</td>
-                        <td class="py-4 px-5 text-right font-mono">${formatTableDiff(diff30d)}</td>
                     </tr>
                 `;
+            }).join('');
+        }
+
+        function renderChart() {
+            const colors = ['#94a3b8', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4'];
+            myChart.setOption({
+                tooltip: { 
+                    trigger: 'axis', 
+                    backgroundColor: 'rgba(255,255,255,0.9)', 
+                    borderWidth: 0, 
+                    shadowBlur: 10, 
+                    textStyle: { fontWeight: 'bold' } 
+                },
+                legend: { data: tiers, bottom: 0, icon: 'circle', textStyle: { fontWeight: 'bold', fontSize: 10 } },
+                grid: { top: 30, left: 60, right: 30, bottom: 80 },
+                xAxis: { 
+                    type: 'category', 
+                    data: rawData.map(d => d.Date), 
+                    axisLine: { lineStyle: { color: '#e2e8f0' } },
+                    axisLabel: { fontWeight: 'bold', color: '#94a3b8' }
+                },
+                yAxis: { 
+                    type: 'log', 
+                    splitLine: { lineStyle: { type: 'dashed', color: '#f1f5f9' } },
+                    axisLabel: { fontWeight: 'bold', color: '#94a3b8' }
+                },
+                series: tiers.map((t, i) => ({
+                    name: t, type: 'line', smooth: true, showSymbol: false,
+                    lineStyle: { width: 3 }, color: colors[i],
+                    data: rawData.map(d => d[t])
+                }))
             });
-
-            tbody.innerHTML = tableHtml;
         }
 
-        async function loadData() {
-            try {
-                const response = await fetch('./data/data.json');
-                globalRawData = await response.json();
-
-                if (!globalRawData || globalRawData.length === 0) return;
-
-                const latestRecord = globalRawData[globalRawData.length - 1];
-                document.getElementById('latest-date').innerText = latestRecord.Date;
-                document.getElementById('latest-date').classList.remove('animate-pulse');
-
-                renderMetricCards(30);
-                renderDistributionTable();
-
-                const dates = globalRawData.map(item => item.Date);
-                const columns = Object.keys(globalRawData[0]).filter(k => k !== 'Date');
-                
-                // 明亮模式高级科技感配色
-                const colorPalette = ['#94a3b8', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f7931a', '#10b981', '#06b6d4'];
-
-                const series = columns.map((col, index) => {
-                    return {
-                        name: col,
-                        type: 'line',
-                        smooth: 0.3,
-                        showSymbol: false,
-                        lineStyle: { width: 2.5 },
-                        emphasis: { focus: 'series', lineStyle: { width: 5 } },
-                        data: globalRawData.map(item => parseInt(item[col] || 0))
-                    };
-                });
-
-                const option = {
-                    backgroundColor: 'transparent',
-                    color: colorPalette,
-                    tooltip: {
-                        trigger: 'axis',
-                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                        borderColor: '#e2e8f0',
-                        textStyle: { color: '#1e293b', fontWeight: 'bold' },
-                        axisPointer: { type: 'cross', label: { backgroundColor: '#f7931a' } },
-                        extraCssText: 'box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border-radius: 8px;'
-                    },
-                    legend: {
-                        data: columns,
-                        top: 0,
-                        textStyle: { color: '#475569', fontSize: 13, fontWeight: 'bold' },
-                        icon: 'circle',
-                        itemGap: 20
-                    },
-                    grid: { left: '2%', right: '3%', bottom: '12%', containLabel: true },
-                    dataZoom: [
-                        { type: 'inside', start: 70, end: 100 },
-                        { type: 'slider', bottom: 0, height: 24, borderColor: '#e2e8f0', textStyle: { color: '#64748b' }, handleStyle: { color: '#f7931a' } }
-                    ],
-                    xAxis: {
-                        type: 'category',
-                        boundaryGap: false,
-                        data: dates,
-                        axisLine: { lineStyle: { color: '#cbd5e1', width: 2 } },
-                        axisLabel: { color: '#64748b', fontWeight: 'bold' }
-                    },
-                    yAxis: {
-                        type: 'log',
-                        name: '地址数量 (Log Scale)',
-                        nameTextStyle: { color: '#64748b', fontWeight: 'bold', padding: [0, 0, 0, 20] },
-                        axisLine: { show: true, lineStyle: { color: '#cbd5e1', width: 2 } },
-                        axisLabel: { color: '#64748b', fontWeight: 'bold' },
-                        splitLine: { lineStyle: { color: '#e2e8f0', type: 'dashed' } }
-                    },
-                    series: series
-                };
-
-                myChart.setOption(option);
-
-            } catch (error) {
-                console.error("加载数据出错:", error);
-                document.getElementById('latest-date').innerText = "Sync Failed";
-                document.getElementById('latest-date').classList.add('text-rose-500');
-            }
-        }
-
-        document.getElementById('timeframe-select').addEventListener('change', (e) => {
-            const selectedDays = parseInt(e.target.value);
-            renderMetricCards(selectedDays);
-        });
-
-        loadData();
+        document.getElementById('timeframe-select').onchange = e => renderMetricCards(parseInt(e.target.value));
+        window.onresize = () => myChart.resize();
     </script>
 </body>
 </html>
