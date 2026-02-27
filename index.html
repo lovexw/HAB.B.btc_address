@@ -3,116 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bitcoin 持仓分布全景数据面板</title>
+    <title>Bitcoin 链上地址分布全景面板</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { crypto: '#f7931a' } } } }
+        tailwind.config = { 
+            darkMode: 'class', 
+            theme: { extend: { colors: { crypto: '#f7931a', darkbg: '#0f172a', panel: 'rgba(30, 41, 59, 0.6)' } } } 
+        }
     </script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <style>
-        body { background-color: #0f172a; color: #f8fafc; }
-        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+        body { background-color: #0f172a; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        .glass-panel { background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="min-h-screen p-4 md:p-8 font-sans selection:bg-crypto selection:text-white">
+<body class="min-h-screen p-4 md:p-6 lg:p-8 selection:bg-crypto selection:text-white">
 
     <div class="max-w-7xl mx-auto space-y-6">
-        <header class="flex flex-col md:flex-row justify-between items-center glass-panel rounded-2xl p-6 shadow-xl">
-            <div>
-                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-crypto to-yellow-200">
-                    Bitcoin 分布全景洞察
+        
+        <header class="flex flex-col md:flex-row justify-between items-center glass-panel rounded-2xl p-6 relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-64 h-64 bg-crypto opacity-5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4"></div>
+            <div class="relative z-10">
+                <h1 class="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-crypto via-yellow-400 to-orange-300">
+                    Bitcoin 链上持仓分布洞察
                 </h1>
-                <p class="text-slate-400 mt-2 text-sm">通过链上数据洞察各阶层地址持币趋势 | 每日自动更新</p>
+                <p class="text-slate-400 mt-2 text-sm flex items-center">
+                    <svg class="w-4 h-4 mr-1 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    提示：在下方图表图例中点击取消选中“散户”，即可清晰观察巨鲸的剧烈波动
+                </p>
             </div>
-            <div class="mt-4 md:mt-0 text-right">
-                <div class="text-sm text-slate-400">最新数据更新日期</div>
-                <div id="latest-date" class="text-xl font-mono text-emerald-400 animate-pulse">加载中...</div>
+            <div class="mt-4 md:mt-0 text-right relative z-10">
+                <div class="text-xs text-slate-400 uppercase tracking-wider mb-1">最后同步时间</div>
+                <div id="latest-date" class="text-2xl font-mono text-emerald-400 font-semibold animate-pulse">Data Loading...</div>
             </div>
         </header>
 
-        <main class="glass-panel rounded-2xl p-6 shadow-2xl">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-slate-200">地址数量历史趋势 (按持币量划分)</h2>
+        <section class="glass-panel rounded-2xl p-6">
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6">
+                <div class="flex items-center space-x-2">
+                    <div class="w-1.5 h-6 bg-crypto rounded-full"></div>
+                    <h2 class="text-xl font-semibold text-slate-100">阶层地址净变动监控</h2>
+                </div>
+                
+                <div class="mt-4 md:mt-0 flex items-center bg-slate-800/80 rounded-lg p-1 border border-slate-700">
+                    <span class="text-sm text-slate-400 px-3 hidden md:inline-block">观察周期：</span>
+                    <select id="timeframe-select" class="bg-transparent text-slate-200 font-medium text-sm py-1.5 px-3 focus:outline-none cursor-pointer">
+                        <option value="7">最近 7 天</option>
+                        <option value="30" selected>最近 30 天</option>
+                        <option value="150">最近 150 天</option>
+                        <option value="365">最近 1 年 (365天)</option>
+                        <option value="700">最近 700 天</option>
+                        <option value="1000">最近 1000 天</option>
+                        <option value="1400">最近 1400 天</option>
+                    </select>
+                </div>
             </div>
-            <div id="main-chart" class="w-full h-[600px]"></div>
+            
+            <div id="metric-cards" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                <div class="col-span-full text-center text-slate-500 py-8">数据加载中...</div>
+            </div>
+        </section>
+
+        <main class="glass-panel rounded-2xl p-6">
+            <div class="flex items-center space-x-2 mb-2">
+                <div class="w-1.5 h-6 bg-blue-500 rounded-full"></div>
+                <h2 class="text-xl font-semibold text-slate-100">长期趋势全景图</h2>
+            </div>
+            <div id="main-chart" class="w-full h-[550px]"></div>
         </main>
 
-        <footer class="text-center text-slate-500 text-sm">
-            <p>Data Source: BitInfoCharts | Powered by GitHub Actions & Cloudflare Pages</p>
+        <footer class="text-center text-slate-600 text-xs py-4 flex flex-col items-center justify-center">
+            <p class="mb-1">Data Source: BitInfoCharts | Automated by GitHub Actions</p>
+            <p>Deployed seamlessly on Cloudflare Pages</p>
         </footer>
     </div>
 
     <script>
-        // 初始化图表实例
+        let globalRawData = []; // 保存全局数据供卡片切换使用
+
+        // 初始化 ECharts
         const chartDom = document.getElementById('main-chart');
         const myChart = echarts.init(chartDom, 'dark', { renderer: 'canvas' });
-        
-        // 窗口大小变化时自适应
         window.addEventListener('resize', () => myChart.resize());
 
-        // 加载并渲染数据
+        // 渲染顶部数据卡片
+        function renderMetricCards(days) {
+            const container = document.getElementById('metric-cards');
+            if (!globalRawData || globalRawData.length === 0) return;
+
+            const latest = globalRawData[globalRawData.length - 1];
+            
+            // 安全获取历史日期的数据索引
+            let pastIndex = globalRawData.length - 1 - days;
+            if (pastIndex < 0) pastIndex = 0;
+            const past = globalRawData[pastIndex];
+
+            const columns = Object.keys(latest).filter(k => k !== 'Date');
+            container.innerHTML = ''; // 清空容器
+
+            columns.forEach(col => {
+                const currentVal = parseInt(latest[col] || 0);
+                const pastVal = parseInt(past[col] || 0);
+                const diff = currentVal - pastVal;
+                
+                // 计算百分比变化
+                let pctChange = "0.00";
+                if (pastVal !== 0) {
+                    pctChange = ((diff / pastVal) * 100).toFixed(2);
+                }
+
+                const isPositive = diff >= 0;
+                // 动态颜色：涨用绿色，跌用红色
+                const textColor = isPositive ? 'text-emerald-400' : 'text-rose-400';
+                const bgColor = isPositive ? 'bg-emerald-400/10' : 'bg-rose-400/10';
+                const sign = isPositive ? '+' : '';
+
+                // 构建优雅的卡片HTML
+                const cardHtml = `
+                    <div class="bg-slate-800/40 hover:bg-slate-700/50 transition-colors border border-slate-700/50 rounded-xl p-3 flex flex-col items-center text-center relative overflow-hidden group">
+                        <div class="text-xs text-slate-400 font-medium mb-1 group-hover:text-slate-300 transition-colors">${col}</div>
+                        <div class="text-lg font-bold text-slate-100 mb-2 truncate w-full" title="${currentVal.toLocaleString()}">${formatNumber(currentVal)}</div>
+                        <div class="w-full border-t border-slate-700/50 mb-2"></div>
+                        <div class="flex flex-col items-center space-y-1">
+                            <span class="text-[11px] px-2 py-0.5 rounded ${bgColor} ${textColor} font-mono font-medium">
+                                ${sign}${formatNumber(diff)}
+                            </span>
+                            <span class="${textColor} text-xs font-semibold">
+                                ${sign}${pctChange}%
+                            </span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+        }
+
+        // 辅助函数：将大数字转换为带 K/M 的简写，增强卡片可读性
+        function formatNumber(num) {
+            const absNum = Math.abs(num);
+            if (absNum >= 1000000) return (num / 1000000).toFixed(2) + 'M';
+            if (absNum >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return num.toString();
+        }
+
+        // 加载并渲染核心数据
         async function loadData() {
             try {
-                // 加载 GitHub Actions 跑出来的 JSON 数据
                 const response = await fetch('./data/data.json');
-                const rawData = await response.json();
+                globalRawData = await response.json();
 
-                if (!rawData || rawData.length === 0) return;
+                if (!globalRawData || globalRawData.length === 0) return;
 
-                // 更新最新日期 UI
-                const latestRecord = rawData[rawData.length - 1];
+                // 1. 更新最新日期
+                const latestRecord = globalRawData[globalRawData.length - 1];
                 document.getElementById('latest-date').innerText = latestRecord.Date;
                 document.getElementById('latest-date').classList.remove('animate-pulse');
 
-                // 解析数据给 ECharts
-                const dates = rawData.map(item => item.Date);
+                // 2. 初始化渲染数据卡片 (默认 30 天)
+                renderMetricCards(30);
+
+                // 3. 渲染 ECharts 图表
+                const dates = globalRawData.map(item => item.Date);
+                const columns = Object.keys(globalRawData[0]).filter(k => k !== 'Date');
                 
-                // 提取具体的键名 (排除 Date 列)
-                const columns = Object.keys(rawData[0]).filter(k => k !== 'Date');
-                
-                // 预设一些好看的渐变色系列
-                const colorPalette = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#84cc16', '#06b6d4'];
+                // 更专业的金融配色方案
+                const colorPalette = ['#64748b', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4'];
 
                 const series = columns.map((col, index) => {
                     return {
-                        name: col + ' BTC',
+                        name: col,
                         type: 'line',
-                        smooth: true,        // 丝滑曲线
-                        showSymbol: false,   // 隐藏折线上的小圆点使得图表更干净
+                        smooth: 0.2,
+                        showSymbol: false,
                         lineStyle: { width: 2 },
-                        emphasis: { focus: 'series' }, // 悬浮时突出显示当前线
-                        data: rawData.map(item => parseInt(item[col] || 0))
+                        emphasis: { focus: 'series', lineStyle: { width: 4 } },
+                        data: globalRawData.map(item => parseInt(item[col] || 0))
                     };
                 });
 
-                // ECharts 配置项
                 const option = {
                     backgroundColor: 'transparent',
                     color: colorPalette,
                     tooltip: {
                         trigger: 'axis',
-                        axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } }
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                        borderColor: '#334155',
+                        textStyle: { color: '#f8fafc' },
+                        axisPointer: { type: 'cross', label: { backgroundColor: '#3b82f6' } }
                     },
                     legend: {
-                        data: columns.map(c => c + ' BTC'),
+                        data: columns,
                         top: 0,
-                        textStyle: { color: '#cbd5e1' }
+                        textStyle: { color: '#cbd5e1', fontSize: 13 },
+                        icon: 'circle',
+                        itemGap: 20
                     },
-                    grid: { left: '3%', right: '4%', bottom: '10%', containLabel: true },
+                    grid: { left: '2%', right: '3%', bottom: '12%', containLabel: true },
                     dataZoom: [
-                        { type: 'inside', start: 80, end: 100 }, // 默认展示最近 20% 的数据，支持鼠标滚轮缩放
-                        { type: 'slider', bottom: 0, textStyle: { color: '#94a3b8' } } // 底部拖拽条
+                        { type: 'inside', start: 70, end: 100 },
+                        { type: 'slider', bottom: 0, height: 24, borderColor: '#334155', textStyle: { color: '#94a3b8' } }
                     ],
                     xAxis: {
                         type: 'category',
                         boundaryGap: false,
                         data: dates,
-                        axisLine: { lineStyle: { color: '#475569' } }
+                        axisLine: { lineStyle: { color: '#475569' } },
+                        axisLabel: { color: '#94a3b8' }
                     },
                     yAxis: {
-                        type: 'log', // 因为大户和散户数量差异极大，使用对数坐标轴能更好地同时展示！
-                        name: '地址数量 (对数刻度)',
-                        axisLine: { lineStyle: { color: '#475569' } },
+                        type: 'log',
+                        name: '地址数量 (Log Scale)',
+                        nameTextStyle: { color: '#94a3b8', padding: [0, 0, 0, 20] },
+                        axisLine: { show: true, lineStyle: { color: '#475569' } },
+                        axisLabel: { color: '#94a3b8' },
                         splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
                     },
                     series: series
@@ -121,13 +226,19 @@
                 myChart.setOption(option);
 
             } catch (error) {
-                console.error("Error loading data:", error);
-                document.getElementById('latest-date').innerText = "数据加载失败";
-                document.getElementById('latest-date').classList.add('text-red-500');
+                console.error("加载数据出错:", error);
+                document.getElementById('latest-date').innerText = "Sync Failed";
+                document.getElementById('latest-date').classList.add('text-rose-500');
             }
         }
 
-        // 启动加载
+        // 监听下拉菜单，切换卡片的时间维度
+        document.getElementById('timeframe-select').addEventListener('change', (e) => {
+            const selectedDays = parseInt(e.target.value);
+            renderMetricCards(selectedDays);
+        });
+
+        // 启动
         loadData();
     </script>
 </body>
