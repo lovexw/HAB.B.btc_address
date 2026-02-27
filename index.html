@@ -1,1 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin 持仓分布全景数据面板</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { colors: { crypto: '#f7931a' } } } }
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); }
+    </style>
+</head>
+<body class="min-h-screen p-4 md:p-8 font-sans selection:bg-crypto selection:text-white">
 
+    <div class="max-w-7xl mx-auto space-y-6">
+        <header class="flex flex-col md:flex-row justify-between items-center glass-panel rounded-2xl p-6 shadow-xl">
+            <div>
+                <h1 class="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-crypto to-yellow-200">
+                    Bitcoin 分布全景洞察
+                </h1>
+                <p class="text-slate-400 mt-2 text-sm">通过链上数据洞察各阶层地址持币趋势 | 每日自动更新</p>
+            </div>
+            <div class="mt-4 md:mt-0 text-right">
+                <div class="text-sm text-slate-400">最新数据更新日期</div>
+                <div id="latest-date" class="text-xl font-mono text-emerald-400 animate-pulse">加载中...</div>
+            </div>
+        </header>
+
+        <main class="glass-panel rounded-2xl p-6 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-slate-200">地址数量历史趋势 (按持币量划分)</h2>
+            </div>
+            <div id="main-chart" class="w-full h-[600px]"></div>
+        </main>
+
+        <footer class="text-center text-slate-500 text-sm">
+            <p>Data Source: BitInfoCharts | Powered by GitHub Actions & Cloudflare Pages</p>
+        </footer>
+    </div>
+
+    <script>
+        // 初始化图表实例
+        const chartDom = document.getElementById('main-chart');
+        const myChart = echarts.init(chartDom, 'dark', { renderer: 'canvas' });
+        
+        // 窗口大小变化时自适应
+        window.addEventListener('resize', () => myChart.resize());
+
+        // 加载并渲染数据
+        async function loadData() {
+            try {
+                // 加载 GitHub Actions 跑出来的 JSON 数据
+                const response = await fetch('./data/data.json');
+                const rawData = await response.json();
+
+                if (!rawData || rawData.length === 0) return;
+
+                // 更新最新日期 UI
+                const latestRecord = rawData[rawData.length - 1];
+                document.getElementById('latest-date').innerText = latestRecord.Date;
+                document.getElementById('latest-date').classList.remove('animate-pulse');
+
+                // 解析数据给 ECharts
+                const dates = rawData.map(item => item.Date);
+                
+                // 提取具体的键名 (排除 Date 列)
+                const columns = Object.keys(rawData[0]).filter(k => k !== 'Date');
+                
+                // 预设一些好看的渐变色系列
+                const colorPalette = ['#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#84cc16', '#06b6d4'];
+
+                const series = columns.map((col, index) => {
+                    return {
+                        name: col + ' BTC',
+                        type: 'line',
+                        smooth: true,        // 丝滑曲线
+                        showSymbol: false,   // 隐藏折线上的小圆点使得图表更干净
+                        lineStyle: { width: 2 },
+                        emphasis: { focus: 'series' }, // 悬浮时突出显示当前线
+                        data: rawData.map(item => parseInt(item[col] || 0))
+                    };
+                });
+
+                // ECharts 配置项
+                const option = {
+                    backgroundColor: 'transparent',
+                    color: colorPalette,
+                    tooltip: {
+                        trigger: 'axis',
+                        axisPointer: { type: 'cross', label: { backgroundColor: '#6a7985' } }
+                    },
+                    legend: {
+                        data: columns.map(c => c + ' BTC'),
+                        top: 0,
+                        textStyle: { color: '#cbd5e1' }
+                    },
+                    grid: { left: '3%', right: '4%', bottom: '10%', containLabel: true },
+                    dataZoom: [
+                        { type: 'inside', start: 80, end: 100 }, // 默认展示最近 20% 的数据，支持鼠标滚轮缩放
+                        { type: 'slider', bottom: 0, textStyle: { color: '#94a3b8' } } // 底部拖拽条
+                    ],
+                    xAxis: {
+                        type: 'category',
+                        boundaryGap: false,
+                        data: dates,
+                        axisLine: { lineStyle: { color: '#475569' } }
+                    },
+                    yAxis: {
+                        type: 'log', // 因为大户和散户数量差异极大，使用对数坐标轴能更好地同时展示！
+                        name: '地址数量 (对数刻度)',
+                        axisLine: { lineStyle: { color: '#475569' } },
+                        splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
+                    },
+                    series: series
+                };
+
+                myChart.setOption(option);
+
+            } catch (error) {
+                console.error("Error loading data:", error);
+                document.getElementById('latest-date').innerText = "数据加载失败";
+                document.getElementById('latest-date').classList.add('text-red-500');
+            }
+        }
+
+        // 启动加载
+        loadData();
+    </script>
+</body>
+</html>
